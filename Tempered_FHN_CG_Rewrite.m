@@ -1,7 +1,8 @@
 %---------------基于共轭梯度法的FHN模型有限差分格式的求解-----------------------------
-function Tempered_FHN_PCG_Rewrite()
+function Tempered_FHN_CG_Rewrite()
 %时间项采用1阶向后Euler格式
 %空间项采用2阶GL数值逼近
+%采用共轭梯度法（CG）
 %使用ADI格式计算，计算速度相对较慢
 
 clc
@@ -139,54 +140,54 @@ end
 
 %%
 % Coefficient Matix A
-%
-% A=zeros(m1-1,m1-1);
-% B=zeros(m2-1,m2-1);
-%
-% for i=1:m1-1
-%     for j=1:m2-1
-%
-%         if(j==i)
-%             A(i,j)=1+2.*(-1).*r1.*g1(1+1);
-%         elseif (j==i+1 || j==i-1)
-%             A(i,j)= (-1).*r1.*(g1(0+1)+g1(2+1));
-%         elseif (j < i-1)
-%             A(i,j) = (-1).*r1.*g1(i-j+1+1);
-%         else
-%             A(i,j) = (-1).*r1.*g1(j-i+1+1);
-%         end
-%
-%
-%         if(j==i)
-%             B(i,j)=1+2.*(-1).*r2.*g2(1+1);
-%         elseif (j==i+1 || j==i-1)
-%             B(i,j)=(-1).*r2.*(g2(0+1)+g2(2+1));
-%         elseif (j<i-1)
-%             B(i,j) = (-1).*r2.*g2(i-j+1+1);
-%         else
-%             B(i,j) = (-1).*r2.*g2(j-i+1+1);
-%         end
-%
-%
-%     end
-% end
 
-% fprintf('Matrix A and B is over\n');      % 矩阵A计算完成
+A=zeros(m1-1,m1-1);
+B=zeros(m2-1,m2-1);
+
+for i=1:m1-1
+    for j=1:m2-1
+
+        if(j==i)
+            A(i,j)=1+2.*(-1).*r1.*g1(1+1);
+        elseif (j==i+1 || j==i-1)
+            A(i,j)= (-1).*r1.*(g1(0+1)+g1(2+1));
+        elseif (j < i-1)
+            A(i,j) = (-1).*r1.*g1(i-j+1+1);
+        else
+            A(i,j) = (-1).*r1.*g1(j-i+1+1);
+        end
 
 
-%构造Toeplitz矩阵第一行
-t1 = zeros(1,m1-1);
-t2 = zeros(1,m1-1);
+        if(j==i)
+            B(i,j)=1+2.*(-1).*r2.*g2(1+1);
+        elseif (j==i+1 || j==i-1)
+            B(i,j)=(-1).*r2.*(g2(0+1)+g2(2+1));
+        elseif (j<i-1)
+            B(i,j) = (-1).*r2.*g2(i-j+1+1);
+        else
+            B(i,j) = (-1).*r2.*g2(j-i+1+1);
+        end
 
-t1(1) = 1+2.*(-1).*r1.*ge1(1+1);
-t1(2) = (-1).*r1.*(ge1(0+1)+ge1(2+1));
-t1(3:m1-1) = (-1).*r1.*ge1((3:m1-1)+1);
-%一阶Toeplitz矩阵系数逼近，X方向
 
-t2(1) = 1+2.*(-1).*r2.*ge2(1+1);
-t2(2) = (-1).*r2.*(ge2(0+1)+ge2(2+1));
-t2(3:m1-1) = (-1).*r2.*ge2((3:m1-1)+1);
-%一阶Toeplitz矩阵系数逼近，Y方向
+    end
+end
+
+fprintf('Matrix A and B is over\n');      % 矩阵A计算完成
+
+
+% %构造Toeplitz矩阵第一行
+% t1 =  ./..;l  zeros(1,m1-1);
+% t2 = zeros(1,m1-1);
+% 
+% t1(1) = 1+2.*(-1).*r1.*ge1(1+1);
+% t1(2) = (-1).*r1.*(ge1(0+1)+ge1(2+1));
+% t1(3:m1-1) = (-1).*r1.*ge1((3:m1-1)+1);
+% %一阶Toeplitz矩阵系数逼近，X方向
+% 
+% t2(1) = 1+2.*(-1).*r2.*ge2(1+1);
+% t2(2) = (-1).*r2.*(ge2(0+1)+ge2(2+1));
+% t2(3:m1-1) = (-1).*r2.*ge2((3:m1-1)+1);
+% %一阶Toeplitz矩阵系数逼近，Y方向
 
 
 %% 求解隐式差分格式
@@ -208,16 +209,16 @@ for lay = 1:layend   %时间步长
     for w1=1:m1-1
         b = u(:,w1) + tau * ( u(:,w1) .* ( 1 - u(:,w1) ) .* ( u(:,w1) - a ) - v(:,w1) );
         % 差分格式右端项  第w1列
-        %         u1(:,w1) = bicg(A,b,tol,it_max);     % 共轭梯度法求解Au=b
-        u1(:,w1) = Toeplitz_main(t1,b,tol,it_max);
+        u1(:,w1) = bicg(A,b,tol,it_max);     % 共轭梯度法求解Au=b
+%        u1(:,w1) = Toeplitz_main(t1,b,tol,it_max);
 %         fprintf('X方向计算，已完成第：%f ',w1);
 %         fprintf('列计算\n');
     end
     for  w2=1:m2-1
         temp=u1(w2,:).';
         %第w2行，变为列向量
-        %        u(w2,:) = bicg(B,temp,tol,it_max).';
-        u(w2,:) =Toeplitz_main(t2,temp,tol,it_max).';
+        u(w2,:) = bicg(B,temp,tol,it_max).';
+%       u(w2,:) =Toeplitz_main(t2,temp,tol,it_max).';
 %         fprintf('Y方向计算，已完成第：%f ',w2);
 %         fprintf('行计算\n');
     end
